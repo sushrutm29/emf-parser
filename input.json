@@ -1,0 +1,18 @@
+{
+    "selectAttributes": [
+        "cust", "1_sum_quant", "2_sum_quant", "3_sum_quant"
+    ],
+    "noOfGroupingVariables": 3,
+    "groupingAttributes": [
+        "cust"
+    ],
+    "fVector": [
+        "1_sum_quant", "1_avg_quant", "2_sum_quant", "3_sum_quant", "3_avg_quant"
+    ],
+    "selectConditions": [
+        "1.state = 'NY'", "2.state = 'NJ'", "3.state = 'CT"
+    ],
+    "havingConditions": [
+        "1_sum_quant > 2 * 2_sum_quant or 1_avg_quant > 3_avg_quant"
+    ]
+}
