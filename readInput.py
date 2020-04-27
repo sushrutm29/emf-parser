@@ -2,6 +2,7 @@ import json
 
 def readInput():
     try:
+        inputArgs = ""
         with open('input.json') as f:
             inputArgs = json.load(f)
 
@@ -9,11 +10,11 @@ def readInput():
         print("Error getting input: ", error)
 
     finally:
-        select = inputArgs['selectAttributes']
+        selects = inputArgs['selectAttributes']
         ngv = inputArgs['noOfGroupingVariables']
         gA = inputArgs['groupingAttributes']
-        fV = inputArgs['fVector']
+        fVs = inputArgs['fVector']
         cond = inputArgs['selectConditions']
         hav = inputArgs['havingConditions']
 
-        return select, ngv, gA, fV, cond, hav
+        return selects, ngv, gA, fVs, cond, hav

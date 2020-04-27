@@ -1,38 +1,59 @@
+from mfstruct import create_struct
 import psycopg2 as pg2
-import json
-from pprint import pprint
-from prettytable import PrettyTable as Table
-from readDb import readDb
-from readInput import readInput
 
-mobile_records = readDb()
-select, ngv, gA, fV, cond, hav = readInput()
+groupAttrIndices, fVs_temp, gVs, selects, attrIndex = create_struct()
 
-attrIndex = {
-    "cust": 0,
-    "prod": 1,
-    "day": 2,
-    "monthh": 3,
-    "year": 4,
-    "state": 5,
-    "quant": 6
-}
-groupAttrIndices = set()
+# Executing query using created necessary structures
+try:
+    connection = pg2.connect(user = "postgres",
+                            password = "grespost123",
+                            host = "127.0.0.1",
+                            port = "5432",
+                            database = "postgres")
+    cursor = connection.cursor()
+    select_query = '''SELECT * from sales'''
+    cursor.execute(select_query)
 
-for i in range(0, len(gA)):
-    groupAttrIndices.add(attrIndex[gA[i]])
+    groups = {}
 
-groups = {}
+    # Iterating through each row
+    for i in range(cursor.rowcount):
+        row = cursor.fetchone()
+        groupTuple = tuple()
+        
+        # Forming a tuple of grouping attributes
+        for j in range(7):
+            if j in groupAttrIndices:
+                groupTuple += (row[j],)
 
-for row in mobile_records:
-    groupTuple = tuple()
+        if groupTuple not in groups:
+            groups[groupTuple] = []
+        
+        currGVs = []
+        for gV in gVs.keys():
+            currGVs.append(gV)
 
-    for i in range(7):
-        if i in groupAttrIndices:
-            groupTuple += (row[i],)
+        # This loop identifies which, if any, grouping variable condition is satisfied by current row
+        for j in range(7):
+            if len(currGVs) == 0:
+                break
+            attrValue = row[j]
+            
+            for gV, conds in gVs.items():
+                for cond in conds:
+                    if attrIndex[cond['attribute']] == j:
+                        if not eval("attrValue"+str(cond['operator'])+str(cond['value'])):
+                            currGVs.remove(gV)
 
-    if groupTuple not in groups:
-        groups[groupTuple] = []
-    groups[groupTuple].append({"cust": row[0], "prod": row[1], "day": row[2], "month": row[3], "year": row[4], "state": row[5], "quant": row[6]})
+        # Skip current row, if it does not satisfy any grouping variable condition
+        if len(currGVs) == 0:
+            continue
+    
+except (Exception, pg2.DatabaseError) as error:
+    print("Error executing query: ", error)
 
-pprint(groups)
+finally:
+    if connection:
+        cursor.close()
+        connection.close()
+        print("Query executed and connection closed successfully!\n")
