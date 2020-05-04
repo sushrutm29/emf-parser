@@ -94,5 +94,5 @@ def create_struct():
 
             gVconds[j] = {"attribute": attribute, "operator": operator, "value": value}
 
-    return groupAttrIndices, fVs_temp, gVs, selects, attrIndex, hav
+    return groupAttrIndices, fVs_temp, gVs, selects, attrIndex, hav, gA
 

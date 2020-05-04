@@ -1,8 +1,10 @@
 from mfstruct import create_struct
 import psycopg2 as pg2
 from pprint import pprint
+from prettytable import PrettyTable
+import re
 
-groupAttrIndices, fVs_temp, gVs, selects, attrIndex, hav = create_struct()
+groupAttrIndices, fVs_temp, gVs, selects, attrIndex, hav, gA = create_struct()
 
 # Executing query using created necessary structures
 try:
@@ -14,6 +16,15 @@ try:
     cursor = connection.cursor()
     select_query = '''SELECT * from sales'''
     cursor.execute(select_query)
+
+    # Creating result table schema
+    queryResult = PrettyTable()
+    field_names = []
+
+    for i in range(len(selects)):
+        field_names.append(selects[i])
+    
+    queryResult.field_names = field_names
 
     # This is the object/dict which stores all grouping attributes and their corresponding aggregate function results
     groups = {}
@@ -85,11 +96,29 @@ try:
                                     continue
                             groups[groupTuple][fVs_temp[j]['gV']+"_avg_"+fVs_temp[j]['attr']] = groups[groupTuple][fVs_temp[j]['gV']+"_sum_"+fVs_temp[j]['attr']] / groups[groupTuple][fVs_temp[j]['gV']+"_count_"+fVs_temp[j]['attr']]
 
+    # Modifying having clause to be easier to evaluate by replacing aggregates with their values
     for gTuple, aggrSet in groups.items():
         currHaving = hav
 
         for aggrName, aggrValue in aggrSet.items():
             currHaving = currHaving.replace(aggrName, str(aggrValue))
+
+        # Replacing every individual "=" with "==" in having string
+        currHaving = re.sub(r"[^<>!]=", "==", currHaving)
+
+        # Add to query result table if row satisfies having condition
+        if eval(currHaving):
+            rowToAdd = []
+
+            for i in range(len(selects)):
+                if selects[i] in gA:
+                    rowToAdd.append(gTuple[i])
+                else:
+                    rowToAdd.append(aggrSet[selects[i]])
+            
+            queryResult.add_row(rowToAdd)
+        
+    print(queryResult)
         
 except (Exception, pg2.DatabaseError) as error:
     print("Error executing query: ", error)
@@ -98,4 +127,4 @@ finally:
     if connection:
         cursor.close()
         connection.close()
-        print("Query executed and connection closed successfully!\n")
+        print("\nQuery executed and connection closed successfully!\n")
