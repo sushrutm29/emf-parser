@@ -4,7 +4,7 @@ from pprint import pprint
 from prettytable import PrettyTable
 import re
 
-groupAttrIndices, fVs_temp, gVs, selects, attrIndex, hav, gA = create_struct()
+groupAttrIndices, fVs_temp, gVs, selects, attrIndex, hav, gA, fVs = create_struct()
 
 # Executing query using created necessary structures
 try:
@@ -57,6 +57,9 @@ try:
         if groupTuple not in groups:
             groups[groupTuple] = {}
 
+            for j in range(len(fVs_temp)):
+                groups[groupTuple][fVs_temp[j]['gV']+"_"+fVs_temp[j]['aggr']+"_"+fVs_temp[j]['attr']] = 0
+
         # Skip current row, if it does not satisfy any grouping variable condition
         if len(currGVs) == 0:
             continue
@@ -97,6 +100,7 @@ try:
                             groups[groupTuple][fVs_temp[j]['gV']+"_avg_"+fVs_temp[j]['attr']] = groups[groupTuple][fVs_temp[j]['gV']+"_sum_"+fVs_temp[j]['attr']] / groups[groupTuple][fVs_temp[j]['gV']+"_count_"+fVs_temp[j]['attr']]
 
     # Modifying having clause to be easier to evaluate by replacing aggregates with their values
+    flag = False
     for gTuple, aggrSet in groups.items():
         currHaving = hav
 
@@ -115,7 +119,7 @@ try:
                     rowToAdd.append(gTuple[i])
                 else:
                     rowToAdd.append(aggrSet[selects[i]])
-            
+
             queryResult.add_row(rowToAdd)
         
     print(queryResult)
