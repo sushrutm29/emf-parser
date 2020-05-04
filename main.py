@@ -84,6 +84,12 @@ try:
                                 if fVs_temp[j]['gV']+"_count_"+fVs_temp[j]['attr'] not in groups[groupTuple]:
                                     continue
                             groups[groupTuple][fVs_temp[j]['gV']+"_avg_"+fVs_temp[j]['attr']] = groups[groupTuple][fVs_temp[j]['gV']+"_sum_"+fVs_temp[j]['attr']] / groups[groupTuple][fVs_temp[j]['gV']+"_count_"+fVs_temp[j]['attr']]
+
+    for gTuple, aggrSet in groups.items():
+        currHaving = hav
+
+        for aggrName, aggrValue in aggrSet.items():
+            currHaving = currHaving.replace(aggrName, str(aggrValue))
         
 except (Exception, pg2.DatabaseError) as error:
     print("Error executing query: ", error)
