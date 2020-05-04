@@ -2,7 +2,7 @@ from mfstruct import create_struct
 import psycopg2 as pg2
 from pprint import pprint
 
-groupAttrIndices, fVs_temp, gVs, selects, attrIndex = create_struct()
+groupAttrIndices, fVs_temp, gVs, selects, attrIndex, hav = create_struct()
 
 # Executing query using created necessary structures
 try:
@@ -49,7 +49,7 @@ try:
         # Skip current row, if it does not satisfy any grouping variable condition
         if len(currGVs) == 0:
             continue
-
+        
         # Compute or update f-vect values upto current row
         for j in range(len(fVs_temp)):
             if fVs_temp[j]['gV'] in currGVs:
@@ -80,11 +80,11 @@ try:
                         if fVs_temp[j]['aggr'] == 'avg':
                             if fVs_temp[j]['gV']+"_avg_"+fVs_temp[j]['attr'] not in groups[groupTuple]:
                                 if fVs_temp[j]['gV']+"_sum_"+fVs_temp[j]['attr'] not in groups[groupTuple]:
-                                    groups[groupTuple][fVs_temp[j]['gV']+"_sum_"+fVs_temp[j]['attr']] = row[k]
+                                    continue
                                 if fVs_temp[j]['gV']+"_count_"+fVs_temp[j]['attr'] not in groups[groupTuple]:
-                                    groups[groupTuple][fVs_temp[j]['gV']+"_count_"+fVs_temp[j]['attr']] = 1
+                                    continue
                             groups[groupTuple][fVs_temp[j]['gV']+"_avg_"+fVs_temp[j]['attr']] = groups[groupTuple][fVs_temp[j]['gV']+"_sum_"+fVs_temp[j]['attr']] / groups[groupTuple][fVs_temp[j]['gV']+"_count_"+fVs_temp[j]['attr']]
-
+        
 except (Exception, pg2.DatabaseError) as error:
     print("Error executing query: ", error)
 

@@ -2,6 +2,9 @@ import json
 from readInput import readInput
 import copy
 
+def __eq__(self, other) : 
+    return self.__dict__ == other.__dict__
+
 def create_struct():
     #Reading query input
     selects, ngv, gA, fVs, cond, hav = readInput()
@@ -41,33 +44,34 @@ def create_struct():
             "aggr": fVs_temp[i][1],
             "attr": fVs_temp[i][2]
         }
-    
+
+    toInsert = []
+    toDelete = []
+
     # Adding sum and count aggregates for every grouping variable and corresponding attribute that has an average aggregate
     for i in range(len(fVs_temp)):
         if fVs_temp[i]['aggr'] == 'avg':
-            count_exists = False
-            sum_exists = False
-
             for j in range(len(fVs_temp)):
                 if fVs_temp[j]['gV'] == fVs_temp[i]['gV'] and fVs_temp[j]['attr'] == fVs_temp[i]['attr']:
-                    if fVs_temp[j]['aggr'] == 'count':
-                        count_exists = True
-                    if fVs_temp[j]['aggr'] == 'sum':
-                        sum_exists = True
-            
-            if not count_exists:
-                fVs_temp.append({
-                    "gV": fVs_temp[i]['gV'],
-                    "aggr": 'count',
-                    "attr": fVs_temp[i]['attr']
-                })
+                    if fVs_temp[j]['aggr'] == 'count' or fVs_temp[j]['aggr'] == 'sum':
+                        toDelete.append(fVs_temp[j])
 
-            if not sum_exists:
-                fVs_temp.append({
-                    "gV": fVs_temp[i]['gV'],
-                    "aggr": 'sum',
-                    "attr": fVs_temp[i]['attr']
-                })            
+            toInsert.append({
+                "gV": fVs_temp[i]['gV'],
+                "aggr": 'count',
+                "attr": fVs_temp[i]['attr']
+            })
+
+            toInsert.append({
+                "gV": fVs_temp[i]['gV'],
+                "aggr": 'sum',
+                "attr": fVs_temp[i]['attr']
+            })
+
+    for i in range(len(toDelete)):
+        fVs_temp.remove(toDelete[i])
+
+    fVs_temp = toInsert + fVs_temp        
 
     # Organizing grouping variable conditions into their attribute to be compared, comparison operator and value
     for gV, gVconds in gVs.items():
@@ -90,5 +94,5 @@ def create_struct():
 
             gVconds[j] = {"attribute": attribute, "operator": operator, "value": value}
 
-    return groupAttrIndices, fVs_temp, gVs, selects, attrIndex
+    return groupAttrIndices, fVs_temp, gVs, selects, attrIndex, hav
 

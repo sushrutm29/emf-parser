@@ -12,7 +12,5 @@
     "selectConditions": [
         "1.state='NY'", "2.state='NJ'", "3.state='CT'"
     ],
-    "havingConditions": [
-        "1_sum_quant > 2 * 2_sum_quant or 1_avg_quant > 3_avg_quant"
-    ]
+    "havingConditions": "1_sum_quant > 2 * 2_sum_quant or 1_avg_quant > 3_avg_quant"
 }
