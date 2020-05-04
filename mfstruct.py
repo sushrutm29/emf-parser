@@ -41,6 +41,33 @@ def create_struct():
             "aggr": fVs_temp[i][1],
             "attr": fVs_temp[i][2]
         }
+    
+    # Adding sum and count aggregates for every grouping variable and corresponding attribute that has an average aggregate
+    for i in range(len(fVs_temp)):
+        if fVs_temp[i]['aggr'] == 'avg':
+            count_exists = False
+            sum_exists = False
+
+            for j in range(len(fVs_temp)):
+                if fVs_temp[j]['gV'] == fVs_temp[i]['gV'] and fVs_temp[j]['attr'] == fVs_temp[i]['attr']:
+                    if fVs_temp[j]['aggr'] == 'count':
+                        count_exists = True
+                    if fVs_temp[j]['aggr'] == 'sum':
+                        sum_exists = True
+            
+            if not count_exists:
+                fVs_temp.append({
+                    "gV": fVs_temp[i]['gV'],
+                    "aggr": 'count',
+                    "attr": fVs_temp[i]['attr']
+                })
+
+            if not sum_exists:
+                fVs_temp.append({
+                    "gV": fVs_temp[i]['gV'],
+                    "aggr": 'sum',
+                    "attr": fVs_temp[i]['attr']
+                })            
 
     # Organizing grouping variable conditions into their attribute to be compared, comparison operator and value
     for gV, gVconds in gVs.items():
