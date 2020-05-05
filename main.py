@@ -3,6 +3,7 @@ import psycopg2 as pg2
 from pprint import pprint
 from prettytable import PrettyTable
 import re
+import logging
 
 groupAttrIndices, fVs_temp, gVs, selects, attrIndex, hav, gA, fVs = create_struct()
 
@@ -29,12 +30,46 @@ try:
     # This is the object/dict which stores all grouping attributes and their corresponding aggregate function results
     groups = {}
 
+    full_table = {}
+
+    full_table_aggrs = False
+
+    for i in range(len(fVs_temp)):
+        if fVs_temp[i]['gV'] == 0:
+            full_table_aggrs = True
+            full_table[fVs_temp[i]['aggr']+"_"+fVs_temp[i]['attr']] = 0
+
+    if full_table_aggrs:
+        for i in range(cursor.rowcount):
+            row = cursor.fetchone()
+            for j in range(len(fVs_temp)):
+                if fVs_temp[j]['gV'] == 0:
+                    for k in range(7):
+                        if attrIndex[fVs_temp[j]['attr']] == k:
+                            if fVs_temp[j]['aggr'] == 'sum':
+                                full_table["sum_"+fVs_temp[j]['attr']] += row[k]
+                            if fVs_temp[j]['aggr'] == 'count':
+                                full_table["count_"+fVs_temp[j]['attr']] += 1
+                            if fVs_temp[j]['aggr'] == 'max':
+                                if full_table["max_"+fVs_temp[j]['attr']] < row[k]:
+                                    full_table["max_"+fVs_temp[j]['attr']] = row[k]
+                            if fVs_temp[j]['aggr'] == 'min':
+                                if full_table["min_"+fVs_temp[j]['attr']] == 0:
+                                    full_table["min_"+fVs_temp[j]['attr']] = row[k]
+                                else:
+                                    if full_table["min_"+fVs_temp[j]['attr']] > row[k]:
+                                        full_table["min_"+fVs_temp[j]['attr']] = row[k]
+                            if fVs_temp[j]['aggr'] == 'avg':
+                                full_table["avg_"+fVs_temp[j]['attr']] = full_table["sum_"+fVs_temp[j]['attr']] / full_table["count_"+fVs_temp[j]['attr']]   
+    
+    cursor.execute(select_query)
+
     # Iterating through each row
     for i in range(cursor.rowcount):
         row = cursor.fetchone()
         groupTuple = tuple()
         currGVs = []
-
+        
         for gV in gVs.keys():
             currGVs.append(gV)
 
@@ -56,7 +91,8 @@ try:
             groups[groupTuple] = {}
 
             for j in range(len(fVs_temp)):
-                groups[groupTuple][fVs_temp[j]['gV']+"_"+fVs_temp[j]['aggr']+"_"+fVs_temp[j]['attr']] = 0
+                if fVs_temp[j]['gV'] != 0:
+                    groups[groupTuple][fVs_temp[j]['gV']+"_"+fVs_temp[j]['aggr']+"_"+fVs_temp[j]['attr']] = 0
 
         # Skip current row, if it does not satisfy any grouping variable condition
         if len(currGVs) == 0:
@@ -126,7 +162,7 @@ try:
     print(queryResult)
         
 except (Exception, pg2.DatabaseError) as error:
-    print("Error executing query: ", error)
+    print("Error executing query: ", logging.exception(error))
 
 finally:
     if connection:
