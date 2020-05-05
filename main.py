@@ -38,22 +38,20 @@ try:
         for gV in gVs.keys():
             currGVs.append(gV)
 
-        # This loop identifies which, if any, grouping variable condition is satisfied by current row
-        #  Also forms a tuple of grouping attributes to store in groups object
+        #  Forms a tuple of grouping attributes to store in groups object
         for j in range(7):
             if j in groupAttrIndices:
                 groupTuple += (row[j],)
-
+        
+        # This loop identifies which, if any, grouping variable condition is satisfied by current row
+        for gV, conds in gVs.items():
+            for attr, index in attrIndex.items():
+                conds = conds.replace(attr, "row["+str(index)+"]")
+            if not eval(conds):
+                currGVs.remove(gV)
             if len(currGVs) == 0:
                 break
-            attrValue = row[j]
-            
-            for gV, conds in gVs.items():
-                for cond in conds:
-                    if attrIndex[cond['attribute']] == j:
-                        if not eval("attrValue"+str(cond['operator'])+str(cond['value'])):
-                            currGVs.remove(gV)
-
+        
         if groupTuple not in groups:
             groups[groupTuple] = {}
 
@@ -101,6 +99,7 @@ try:
 
     # Modifying having clause to be easier to evaluate by replacing aggregates with their values
     flag = False
+
     for gTuple, aggrSet in groups.items():
         currHaving = hav
 
@@ -109,14 +108,16 @@ try:
 
         # Replacing every individual "=" with "==" in having string
         currHaving = re.sub(r"[^<>!]=", "==", currHaving)
-
+    
         # Add to query result table if row satisfies having condition
         if eval(currHaving):
             rowToAdd = []
 
             for i in range(len(selects)):
                 if selects[i] in gA:
-                    rowToAdd.append(gTuple[i])
+                    for j in range(len(gA)):
+                        if selects[i] == gA[j]:
+                            rowToAdd.append(gTuple[j])
                 else:
                     rowToAdd.append(aggrSet[selects[i]])
 

@@ -1,6 +1,7 @@
 import json
 from readInput import readInput
 import copy
+import re
 
 def __eq__(self, other) : 
     return self.__dict__ == other.__dict__
@@ -15,19 +16,27 @@ def create_struct():
         "cust": 0,
         "prod": 1,
         "day": 2,
-        "monthh": 3,
+        "month": 3,
         "year": 4,
         "state": 5,
         "quant": 6
     }
 
-    gVs = {"1": [], "2": [], "3": []}
+    gVs = {"1": "", "2": "", "3": ""}
 
     # Organizing grouping variables and their conditions into dictionaries
     for i in range(1,ngv+1):
         for c in cond:
             if int(c[0]) == i:
-                gVs[str(i)].append(c[2:])
+                j = 2
+                while j < len(c):
+                    if not c[j] == str(i):
+                        gVs[str(i)] += c[j]
+                        j+=1
+                    else:
+                        j+=2
+
+                gVs[str(i)] = re.sub(r"[^<>!]=", "==", gVs[str(i)])
 
     # Creating a set of grouping attribute indices
     groupAttrIndices = set()
@@ -72,27 +81,6 @@ def create_struct():
         fVs_temp.remove(toDelete[i])
 
     fVs_temp = toInsert + fVs_temp        
-
-    # Organizing grouping variable conditions into their attribute to be compared, comparison operator and value
-    for gV, gVconds in gVs.items():
-        for j in range(len(gVconds)):
-            operator = ""
-            attribute = ""
-            value = ""
-            attrEnd = False
-            for i in range(len(gVconds[j])):
-                if gVconds[j][i] in {"=", ">", "<"}:
-                    attrEnd = True
-                    if gVconds[j][i] == "=":
-                        operator += "=="
-                    else: 
-                        operator += gVconds[j][i]
-                elif attrEnd:
-                    value += gVconds[j][i]
-                if not attrEnd:
-                    attribute += gVconds[j][i]
-
-            gVconds[j] = {"attribute": attribute, "operator": operator, "value": value}
 
     return groupAttrIndices, fVs_temp, gVs, selects, attrIndex, hav, gA, fVs
 
