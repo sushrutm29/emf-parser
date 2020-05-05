@@ -38,7 +38,7 @@ try:
         for gV in gVs.keys():
             currGVs.append(gV)
 
-        #  Forms a tuple of grouping attributes to store in groups object
+        # Forms a tuple of grouping attributes to store in groups object
         for j in range(7):
             if j in groupAttrIndices:
                 groupTuple += (row[j],)
@@ -61,7 +61,7 @@ try:
         # Skip current row, if it does not satisfy any grouping variable condition
         if len(currGVs) == 0:
             continue
-        
+
         # Compute or update f-vect values upto current row
         for j in range(len(fVs_temp)):
             if fVs_temp[j]['gV'] in currGVs:

@@ -22,10 +22,11 @@ def create_struct():
         "quant": 6
     }
 
-    gVs = {"1": "", "2": "", "3": ""}
+    gVs = {}
 
     # Organizing grouping variables and their conditions into dictionaries
     for i in range(1,ngv+1):
+        gVs[str(i)] = ""
         for c in cond:
             if int(c[0]) == i:
                 j = 2
