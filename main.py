@@ -3,6 +3,7 @@ import psycopg2 as pg2
 from pprint import pprint
 from prettytable import PrettyTable
 import re
+import logging
 
 groupAttrIndices, fVs_temp, gVs, selects, attrIndex, hav, gA, fVs = create_struct()
 
@@ -29,6 +30,71 @@ try:
     # This is the object/dict which stores all grouping attributes and their corresponding aggregate function results
     groups = {}
 
+    full_table_aggrs = False
+
+    # Check if there are any aggregates on entire group
+    for i in range(len(fVs_temp)):
+        if fVs_temp[i]['gV'] == "0":
+            full_table_aggrs = True
+            break
+    
+    if full_table_aggrs:
+        for i in range(cursor.rowcount):
+            row = cursor.fetchone()
+            groupTuple = tuple()
+
+            # Forms a tuple of grouping attributes to store in groups object
+            for j in range(7):
+                if j in groupAttrIndices:
+                    groupTuple += (row[j],)
+            
+            # Initialize group tuple values if not already done so
+            if groupTuple not in groups:
+                groups[groupTuple] = {}
+
+                for j in range(len(fVs_temp)):
+                    if not fVs_temp[j]['gV'] == "0":
+                        groups[groupTuple][fVs_temp[j]['gV']+"_"+fVs_temp[j]['aggr']+"_"+fVs_temp[j]['attr']] = 0
+                    else:
+                        groups[groupTuple][fVs_temp[j]['aggr']+"_"+fVs_temp[j]['attr']] = 0  
+
+            # Compute or update f-vect values upto current row
+            for j in range(len(fVs_temp)):
+                for k in range(7):
+                    if fVs_temp[j]['gV'] == "0":
+                        if attrIndex[fVs_temp[j]['attr']] == k:
+                            if fVs_temp[j]['aggr'] == 'sum':
+                                if "sum_"+fVs_temp[j]['attr'] not in groups[groupTuple]:
+                                    groups[groupTuple]["sum_"+fVs_temp[j]['attr']] = row[k]
+                                else:
+                                    groups[groupTuple]["sum_"+fVs_temp[j]['attr']] += row[k]
+                            if fVs_temp[j]['aggr'] == 'count':
+                                if "count_"+fVs_temp[j]['attr'] not in groups[groupTuple]:
+                                    groups[groupTuple]["count_"+fVs_temp[j]['attr']] = 1
+                                else:
+                                    groups[groupTuple]["count_"+fVs_temp[j]['attr']] += 1
+                            if fVs_temp[j]['aggr'] == 'max':
+                                if "max_"+fVs_temp[j]['attr'] not in groups[groupTuple]:
+                                    groups[groupTuple]["max_"+fVs_temp[j]['attr']] = row[k]
+                                else:
+                                    if groups[groupTuple]["max_"+fVs_temp[j]['attr']] < row[k]:
+                                        groups[groupTuple]["max_"+fVs_temp[j]['attr']] = row[k]
+                            if fVs_temp[j]['aggr'] == 'min':
+                                if "min_"+fVs_temp[j]['attr'] not in groups[groupTuple] or groups[groupTuple]["min_"+fVs_temp[j]['attr']] == 0:
+                                    groups[groupTuple]["min_"+fVs_temp[j]['attr']] = row[k]
+                                else:
+                                    if groups[groupTuple]["min_"+fVs_temp[j]['attr']] > row[k]:
+                                        groups[groupTuple]["min_"+fVs_temp[j]['attr']] = row[k]
+                            if fVs_temp[j]['aggr'] == 'avg':
+                                if "avg_"+fVs_temp[j]['attr'] not in groups[groupTuple]:
+                                    if "sum_"+fVs_temp[j]['attr'] not in groups[groupTuple]:
+                                        continue
+                                    if "count_"+fVs_temp[j]['attr'] not in groups[groupTuple]:
+                                        continue
+                                groups[groupTuple]["avg_"+fVs_temp[j]['attr']] = groups[groupTuple]["sum_"+fVs_temp[j]['attr']] / groups[groupTuple]["count_"+fVs_temp[j]['attr']]                                  
+
+        cursor.execute(select_query)
+
     # Iterating through each row
     for i in range(cursor.rowcount):
         row = cursor.fetchone()
@@ -43,29 +109,38 @@ try:
             if j in groupAttrIndices:
                 groupTuple += (row[j],)
         
-        # This loop identifies which, if any, grouping variable condition is satisfied by current row
-        for gV, conds in gVs.items():
-            for attr, index in attrIndex.items():
-                conds = conds.replace(attr, "row["+str(index)+"]")
-            if not eval(conds):
-                currGVs.remove(gV)
-            if len(currGVs) == 0:
-                break
-        
+        # Initialize group tuple values if not already done so
         if groupTuple not in groups:
             groups[groupTuple] = {}
 
             for j in range(len(fVs_temp)):
-                groups[groupTuple][fVs_temp[j]['gV']+"_"+fVs_temp[j]['aggr']+"_"+fVs_temp[j]['attr']] = 0
+                if not fVs_temp[j]['gV'] == "0":
+                    groups[groupTuple][fVs_temp[j]['gV']+"_"+fVs_temp[j]['aggr']+"_"+fVs_temp[j]['attr']] = 0
+                else:
+                    groups[groupTuple][fVs_temp[j]['aggr']+"_"+fVs_temp[j]['attr']] = 0
 
-        # Skip current row, if it does not satisfy any grouping variable condition
-        if len(currGVs) == 0:
+        # This loop identifies which, if any, grouping variable condition is satisfied by current row
+        for gV, conds in gVs.items():
+            for j in range(len(fVs_temp)):
+                if fVs_temp[j]['gV'] == "0":
+                    conds = conds.replace(str(fVs_temp[j]['aggr']+"_"+fVs_temp[j]['attr']), str(groups[groupTuple][fVs_temp[j]['aggr']+"_"+fVs_temp[j]['attr']]))
+            
+            for attr, index in attrIndex.items():
+                conds = conds.replace(attr, "row["+str(index)+"]")
+
+            if not eval(conds):
+                currGVs.remove(gV)
+            if len(currGVs) == 0 and not full_table_aggrs:
+                break
+
+        # Skip current row, if it does not satisfy any grouping variable condition and no aggregates for entire group
+        if len(currGVs) == 0 and not full_table_aggrs:
             continue
-
+        
         # Compute or update f-vect values upto current row
         for j in range(len(fVs_temp)):
-            if fVs_temp[j]['gV'] in currGVs:
-                for k in range(7):
+            for k in range(7):
+                if fVs_temp[j]['gV'] in currGVs:
                     if attrIndex[fVs_temp[j]['attr']] == k:
                         if fVs_temp[j]['aggr'] == 'sum':
                             if fVs_temp[j]['gV']+"_sum_"+fVs_temp[j]['attr'] not in groups[groupTuple]:
@@ -84,7 +159,7 @@ try:
                                 if groups[groupTuple][fVs_temp[j]['gV']+"_max_"+fVs_temp[j]['attr']] < row[k]:
                                     groups[groupTuple][fVs_temp[j]['gV']+"_max_"+fVs_temp[j]['attr']] = row[k]
                         if fVs_temp[j]['aggr'] == 'min':
-                            if fVs_temp[j]['gV']+"_min_"+fVs_temp[j]['attr'] not in groups[groupTuple]:
+                            if fVs_temp[j]['gV']+"_min_"+fVs_temp[j]['attr'] not in groups[groupTuple] or groups[groupTuple][fVs_temp[j]['gV']+"_min_"+fVs_temp[j]['attr']] == 0:
                                 groups[groupTuple][fVs_temp[j]['gV']+"_min_"+fVs_temp[j]['attr']] = row[k]
                             else:
                                 if groups[groupTuple][fVs_temp[j]['gV']+"_min_"+fVs_temp[j]['attr']] > row[k]:
@@ -98,19 +173,21 @@ try:
                             groups[groupTuple][fVs_temp[j]['gV']+"_avg_"+fVs_temp[j]['attr']] = groups[groupTuple][fVs_temp[j]['gV']+"_sum_"+fVs_temp[j]['attr']] / groups[groupTuple][fVs_temp[j]['gV']+"_count_"+fVs_temp[j]['attr']]
 
     # Modifying having clause to be easier to evaluate by replacing aggregates with their values
-    flag = False
-
     for gTuple, aggrSet in groups.items():
         currHaving = hav
 
-        for aggrName, aggrValue in aggrSet.items():
-            currHaving = currHaving.replace(aggrName, str(aggrValue))
+        if not currHaving == "":
+            for aggrName, aggrValue in aggrSet.items():
+                currHaving = currHaving.replace(aggrName, str(aggrValue))
 
-        # Replacing every individual "=" with "==" in having string
-        currHaving = re.sub(r"[^<>!]=", "==", currHaving)
-    
+            # Replacing every individual "=" with "==" in having string
+            currHaving = currHaving.replace("=", "==")
+            currHaving = currHaving.replace(">==", ">=")
+            currHaving = currHaving.replace("<==", "<=")
+            currHaving = currHaving.replace("!==", "!=")
+
         # Add to query result table if row satisfies having condition
-        if eval(currHaving):
+        if currHaving == "" or eval(currHaving):
             rowToAdd = []
 
             for i in range(len(selects)):
@@ -126,7 +203,7 @@ try:
     print(queryResult)
         
 except (Exception, pg2.DatabaseError) as error:
-    print("Error executing query: ", error)
+    print("Error executing query: ", logging.exception(error))
 
 finally:
     if connection:

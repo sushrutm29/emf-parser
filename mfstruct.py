@@ -37,7 +37,11 @@ def create_struct():
                     else:
                         j+=2
 
-                gVs[str(i)] = re.sub(r"[^<>!]=", "==", gVs[str(i)])
+                # Replacing '=' with '==' in condition for evaluation purpose
+                gVs[str(i)] = gVs[str(i)].replace("=", "==")
+                gVs[str(i)] = gVs[str(i)].replace(">==", ">=")
+                gVs[str(i)] = gVs[str(i)].replace("<==", "<=")
+                gVs[str(i)] = gVs[str(i)].replace("!==", "!=")
 
     # Creating a set of grouping attribute indices
     groupAttrIndices = set()
@@ -49,11 +53,18 @@ def create_struct():
     # Better organizing F-vect input into grouping variable, aggregate function and attribute
     for i in range(len(fVs_temp)):
         fVs_temp[i] = fVs_temp[i].split('_')
-        fVs_temp[i] = {
-            "gV": fVs_temp[i][0],
-            "aggr": fVs_temp[i][1],
-            "attr": fVs_temp[i][2]
-        }
+        if fVs_temp[i][0].isdigit():
+            fVs_temp[i] = {
+                "gV": fVs_temp[i][0],
+                "aggr": fVs_temp[i][1],
+                "attr": fVs_temp[i][2]
+            }
+        else:
+            fVs_temp[i] = {
+                "gV": '0',
+                "aggr": fVs_temp[i][0],
+                "attr": fVs_temp[i][1]
+            }
 
     toInsert = []
     toDelete = []
