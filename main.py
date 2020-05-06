@@ -2,7 +2,6 @@ from mfstruct import create_struct
 import psycopg2 as pg2
 from pprint import pprint
 from prettytable import PrettyTable
-import re
 import logging
 
 groupAttrIndices, fVs_temp, gVs, selects, attrIndex, hav, gA, fVs = create_struct()
@@ -38,6 +37,7 @@ try:
             full_table_aggrs = True
             break
     
+    # If there are full group aggregates, compute them first
     if full_table_aggrs:
         for i in range(cursor.rowcount):
             row = cursor.fetchone()
