@@ -1,5 +1,5 @@
 # emf-parser
-An app to execute EMF queries
+An app to execute MF queries. (EMF functionality coming soon!)
 
 Usage:
 1. Install dependencies with command: python3 -m pip install -r "requirements.txt"
