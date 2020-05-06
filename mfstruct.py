@@ -1,6 +1,10 @@
 import json
 from readInput import readInput
 import copy
+import re
+
+def __eq__(self, other) : 
+    return self.__dict__ == other.__dict__
 
 def create_struct():
     #Reading query input
@@ -12,19 +16,32 @@ def create_struct():
         "cust": 0,
         "prod": 1,
         "day": 2,
-        "monthh": 3,
+        "month": 3,
         "year": 4,
         "state": 5,
         "quant": 6
     }
 
-    gVs = {"1": [], "2": [], "3": []}
+    gVs = {}
 
     # Organizing grouping variables and their conditions into dictionaries
     for i in range(1,ngv+1):
+        gVs[str(i)] = ""
         for c in cond:
             if int(c[0]) == i:
-                gVs[str(i)].append(c[2:])
+                j = 2
+                while j < len(c):
+                    if not c[j] == str(i):
+                        gVs[str(i)] += c[j]
+                        j+=1
+                    else:
+                        j+=2
+
+                # Replacing '=' with '==' in condition for evaluation purpose
+                gVs[str(i)] = gVs[str(i)].replace("=", "==")
+                gVs[str(i)] = gVs[str(i)].replace(">==", ">=")
+                gVs[str(i)] = gVs[str(i)].replace("<==", "<=")
+                gVs[str(i)] = gVs[str(i)].replace("!==", "!=")
 
     # Creating a set of grouping attribute indices
     groupAttrIndices = set()
@@ -36,32 +53,46 @@ def create_struct():
     # Better organizing F-vect input into grouping variable, aggregate function and attribute
     for i in range(len(fVs_temp)):
         fVs_temp[i] = fVs_temp[i].split('_')
-        fVs_temp[i] = {
-            "gV": fVs_temp[i][0],
-            "aggr": fVs_temp[i][1],
-            "attr": fVs_temp[i][2]
-        }
+        if fVs_temp[i][0].isdigit():
+            fVs_temp[i] = {
+                "gV": fVs_temp[i][0],
+                "aggr": fVs_temp[i][1],
+                "attr": fVs_temp[i][2]
+            }
+        else:
+            fVs_temp[i] = {
+                "gV": '0',
+                "aggr": fVs_temp[i][0],
+                "attr": fVs_temp[i][1]
+            }
 
-    # Organizing grouping variable conditions into their attribute to be compared, comparison operator and value
-    for gV, gVconds in gVs.items():
-        for j in range(len(gVconds)):
-            operator = ""
-            attribute = ""
-            value = ""
-            attrEnd = False
-            for i in range(len(gVconds[j])):
-                if gVconds[j][i] in {"=", ">", "<"}:
-                    attrEnd = True
-                    if gVconds[j][i] == "=":
-                        operator += "=="
-                    else: 
-                        operator += gVconds[j][i]
-                elif attrEnd:
-                    value += gVconds[j][i]
-                if not attrEnd:
-                    attribute += gVconds[j][i]
+    toInsert = []
+    toDelete = []
 
-            gVconds[j] = {"attribute": attribute, "operator": operator, "value": value}
+    # Adding sum and count aggregates for every grouping variable and corresponding attribute that has an average aggregate
+    for i in range(len(fVs_temp)):
+        if fVs_temp[i]['aggr'] == 'avg':
+            for j in range(len(fVs_temp)):
+                if fVs_temp[j]['gV'] == fVs_temp[i]['gV'] and fVs_temp[j]['attr'] == fVs_temp[i]['attr']:
+                    if fVs_temp[j]['aggr'] == 'count' or fVs_temp[j]['aggr'] == 'sum':
+                        toDelete.append(fVs_temp[j])
 
-    return groupAttrIndices, fVs_temp, gVs, selects, attrIndex
+            toInsert.append({
+                "gV": fVs_temp[i]['gV'],
+                "aggr": 'count',
+                "attr": fVs_temp[i]['attr']
+            })
+
+            toInsert.append({
+                "gV": fVs_temp[i]['gV'],
+                "aggr": 'sum',
+                "attr": fVs_temp[i]['attr']
+            })
+
+    for i in range(len(toDelete)):
+        fVs_temp.remove(toDelete[i])
+
+    fVs_temp = toInsert + fVs_temp        
+
+    return groupAttrIndices, fVs_temp, gVs, selects, attrIndex, hav, gA, fVs
 
