@@ -1,6 +1,5 @@
 from mfstruct import create_struct
 import psycopg2 as pg2
-from pprint import pprint
 from prettytable import PrettyTable
 import logging
 
