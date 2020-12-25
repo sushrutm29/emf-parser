@@ -1,4 +1,4 @@
-# emf-parser
+# mf-parser
 An app to execute MF queries. (EMF functionality coming soon!)
 
 Usage:
